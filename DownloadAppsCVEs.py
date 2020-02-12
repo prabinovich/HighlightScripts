@@ -48,10 +48,10 @@ def getAppCVEs(_apiurl, _auth, _orgid, _appid, _appname, _resultsFile):
                         _resultsFile.write('{},"{}","{}","{}","{}","{}"\n'.format(_appid, _appname, _cveName, _cveLink, "", _cveCriticality))
                         _singletonCVEs[_cveName] = True
 
-            # Write in empty row if no CVEs were found for an application
-            if len(_singletonCVEs) == 0:
-                # Header: app_id,app_name,cve_name,cve_link,cve_desc,cve_criticality
-                _resultsFile.write('{},"{}","{}","{}","{}","{}"\n'.format(_appid, _appname, 'n/a', 'n/a', 'n/a', 'n/a'))
+        # Write in empty row if no CVEs were found for an application
+        if len(_singletonCVEs) == 0:
+            # Header: app_id,app_name,cve_name,cve_link,cve_desc,cve_criticality
+            _resultsFile.write('{},"{}","{}","{}","{}","{}"\n'.format(_appid, _appname, 'n/a', 'n/a', 'n/a', 'n/a'))
 
     except Exception as e:
         print('***********************************************')
