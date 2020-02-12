@@ -6,7 +6,7 @@ import requests
 import time
 import json
 
-def getAppCVEs(_apiurl, _auth, _orgid, _appid, _appname, _bomfile):
+def getAppCVEs(_apiurl, _auth, _orgid, _appid, _appname, _resultsFile):
     _headers = {'Accept':'application/json'}
     _resturi = 'WS2/domains/{}/applications/{}/thirdparty'.format(_orgid, _appid)
     
@@ -26,25 +26,32 @@ def getAppCVEs(_apiurl, _auth, _orgid, _appid, _appname, _bomfile):
                 print('Aborting script...')
                 sys.exit(0)
         
+        # Initalize CVEs dictionary to keep unique list of CVEs for an app
+        _singletonCVEs = {}
+        
         # Loop through all libraries
         for _thirdParty in _jsonResult['thirdParties']:
-            # Loop through CVEs reported in 3rd party components
-            for _cve in _thirdParty['cve']['vulnerabilities']:
-                # Check if JSON element is present, otherwise specify that data is unavailable
-                _cveName = _cves['name'] if ('name' in _cve) else 'n/a'
-                _cveDesc = _cves['description'] if ('description' in _cve) else 'n/a'
-                _cveLink = _cves['link'] if ('link' in _cve) else 'n/a'
-                _cveCriticality = _cves['criticity'] if ('criticity' in _cve) else 'n/a'
-
-                # Check if CVE is already recorded for this application
-                if _cveName not in singletonCVEs:
-                    # Write CVE info into file
-                    _bomfile.write('{},"{}","{}","{}","{}","{}",{}\n'.format(_appid, _appname, _cveName, _cveDesc, _cveLink, _cveCriticality))
-                    singletonCVEs[_cveName] = True
+            # Check to see if component has CVEs
+            if ('cve' in _thirdParty):
+                # Loop through CVEs reported in 3rd party components
+                for _libCVE in _thirdParty['cve']['vulnerabilities']:
+                    # Check if JSON element is present, otherwise specify that data is unavailable
+                    _cveName = _libCVE['name'] if ('name' in _libCVE) else 'n/a'
+                    _cveDesc = _libCVE['description'] if ('description' in _libCVE) else 'n/a'
+                    _cveLink = _libCVE['link'] if ('link' in _libCVE) else 'n/a'
+                    _cveCriticality = _libCVE['criticity'] if ('criticity' in _libCVE) else 'n/a'
+    
+                    # Check if CVE is already recorded for this application
+                    if _cveName not in _singletonCVEs:
+                        # Write CVE info into file
+                        # Header: app_id,app_name,cve_name,cve_link,cve_desc,cve_criticality
+                        _resultsFile.write('{},"{}","{}","{}","{}","{}"\n'.format(_appid, _appname, _cveName, _cveLink, "", _cveCriticality))
+                        _singletonCVEs[_cveName] = True
 
             # Write in empty row if no CVEs were found for an application
-            if len(singletonCVEs) == 0:
-                _bomfile.write('{},"{}","{}","{}","{}","{}"\n'.format(_appid, _appname, 'n/a', 'n/a', 'n/a', 'n/a'))
+            if len(_singletonCVEs) == 0:
+                # Header: app_id,app_name,cve_name,cve_link,cve_desc,cve_criticality
+                _resultsFile.write('{},"{}","{}","{}","{}","{}"\n'.format(_appid, _appname, 'n/a', 'n/a', 'n/a', 'n/a'))
 
     except Exception as e:
         print('***********************************************')
@@ -70,8 +77,8 @@ if __name__ == "__main__":
 
     try:
         # Create file where results of query will be stored
-        _bomfile = open(_args.filepath, "w") # Create file
-        _bomfile.write('app_id,app_name,cve_name,cve_link,cve_desc,cve_criticality\n') # Write file header
+        _resultsFile = open(_args.filepath, "w") # Create file
+        _resultsFile.write('app_id,app_name,cve_name,cve_link,cve_desc,cve_criticality\n') # Write file header
     
         # Get list of all applications
         _headers = {'Accept':'application/json'}
@@ -82,14 +89,14 @@ if __name__ == "__main__":
         print('Call succeeded!')
         
         # Loop through each application to get and store the BOM
-        #for item in _jsonResult:
-        #    print('Getting BOM for application "{}" (id:{})'.format(item['name'], item['id']))
-        #    getAppBOM(_args.connection, _auth, _args.orgid, item['id'], item['name'], _bomfile)
+        for item in _jsonResult:
+            print('Getting CVEs for application "{}" (id:{})'.format(item['name'], item['id']))
+            getAppCVEs(_args.connection, _auth, _args.orgid, item['id'], item['name'], _resultsFile)
         
-        #getAppBOM(_args.connection, _auth, _args.orgid, 1246, 'ACH', _bomfile) # Debugging statement 
+        #getAppCVEs(_args.connection, _auth, _args.orgid, 1251, 'PSE', _resultsFile) # Debugging statement 
          
         # Close file
-        _bomfile.close()
+        _resultsFile.close()
         print ('CVE information stored in file: {}'.format(_args.filepath))
         
     except Exception as e:
