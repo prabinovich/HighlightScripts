@@ -26,17 +26,21 @@ def getAppBOM(_apiurl, _auth, _orgid, _appid, _appname, _bomfile):
                 print('Aborting script...')
                 sys.exit(0)
         
-        # Loop through all libraries
-        for item in _jsonResult['thirdParties']:
-            # Header: 'app_id,app_name,lib_name,lib_ver,lib_lastver,lib_lang,cve_count'
-            
-            # Check if JSON element is present, otherwise specify that data is unavailable
-            _libVer = item['version'] if ('version' in item) else 'n/a'
-            _libLastVer = item['lastVersion'] if ('lastVersion' in item) else 'n/a'
-            _libLang = item['languages'] if ('languages' in item) else 'n/a'
-            _libcve = len(item['cve']['vulnerabilities']) if ('cve' in item) else 0
-
-            _bomfile.write('{},"{}","{}","{}","{}","{}",{}\n'.format(_appid, _appname, item['name'], _libVer, _libLastVer, _libLang, _libcve))
+        # Check to see if there any items on the BOM
+        if len(_jsonResult['thirdParties']) == 0:
+            _bomfile.write('{},"{}","{}","{}","{}","{}",{}\n'.format(_appid, _appname, 'n/a', 'n/a', 'n/a', 'n/a', 0))
+        else:
+            # Loop through all libraries
+            for item in _jsonResult['thirdParties']:
+                # Header: 'app_id,app_name,lib_name,lib_ver,lib_lastver,lib_lang,cve_count'
+                
+                # Check if JSON element is present, otherwise specify that data is unavailable
+                _libVer = item['version'] if ('version' in item) else 'n/a'
+                _libLastVer = item['lastVersion'] if ('lastVersion' in item) else 'n/a'
+                _libLang = item['languages'] if ('languages' in item) else 'n/a'
+                _libcve = len(item['cve']['vulnerabilities']) if ('cve' in item) else 0
+    
+                _bomfile.write('{},"{}","{}","{}","{}","{}",{}\n'.format(_appid, _appname, item['name'], _libVer, _libLastVer, _libLang, _libcve))
 
     except Exception as e:
         print('***********************************************')
@@ -78,7 +82,7 @@ if __name__ == "__main__":
             print('Getting BOM for application "{}" (id:{})'.format(item['name'], item['id']))
             getAppBOM(_args.connection, _auth, _args.orgid, item['id'], item['name'], _bomfile)
         
-        #getAppBOM(_args.connection, _auth, _args.orgid, 1232, 'ACP', _bomfile) # Debugging statement 
+        #getAppBOM(_args.connection, _auth, _args.orgid, 1246, 'ACH', _bomfile) # Debugging statement 
          
         # Close file
         _bomfile.close()
