@@ -11,9 +11,20 @@ def getAppBOM(_apiurl, _auth, _orgid, _appid, _appname, _bomfile):
     _resturi = 'WS2/domains/{}/applications/{}/thirdparty'.format(_orgid, _appid)
     
     try:
-        print('Making a call to get BOM for {} app: {}/{}'.format(_appname, _apiurl, _resturi))
-        _jsonResult = requests.get(_apiurl+'/'+_resturi, headers=_headers, auth=_auth, verify=False, timeout=10).json()
-        print('Call succeeded!')
+        try:
+            print('Making a call to get BOM for {} app: {}/{}'.format(_appname, _apiurl, _resturi))
+            _jsonResult = requests.get(_apiurl+'/'+_resturi, headers=_headers, auth=_auth, verify=False, timeout=30).json()
+            print('1st RestAPI call to Highlight succeeded.')
+        except requests.exceptions.RequestException as e:
+            try:
+                print('1st connection attempt to Highlight RestAPI failed. Trying again...')
+                _jsonResult = requests.get(_apiurl+'/'+_resturi, headers=_headers, auth=_auth, verify=False, timeout=60).json()
+                print('2nd call succeeded.')
+            except requests.exceptions.RequestException as e:
+                print('Failed to connect to Highlight API')
+                print('Error: {}'.format(e))
+                print('Aborting script...')
+                sys.exit(0)
         
         # Loop through all libraries
         for item in _jsonResult['thirdParties']:
@@ -28,7 +39,9 @@ def getAppBOM(_apiurl, _auth, _orgid, _appid, _appname, _bomfile):
             _bomfile.write('{},"{}","{}","{}","{}","{}",{}\n'.format(_appid, _appname, item['name'], _libVer, _libLastVer, _libLang, _libcve))
 
     except Exception as e:
+        print('***********************************************')
         print('Error: {}'.format(str(e)))
+        print('***********************************************')
         #print(json.dumps(_jsonResult).replace("\'", "*"))
         #exit (0)
     
@@ -64,8 +77,10 @@ if __name__ == "__main__":
         for item in _jsonResult:
             print('Getting BOM for application "{}" (id:{})'.format(item['name'], item['id']))
             getAppBOM(_args.connection, _auth, _args.orgid, item['id'], item['name'], _bomfile)
+        
+        #getAppBOM(_args.connection, _auth, _args.orgid, 1232, 'ACP', _bomfile) # Debugging statement 
          
-         # Close file
+        # Close file
         _bomfile.close()
         print ('Bill of Material information stored in file: {}'.format(_args.filepath))
         
