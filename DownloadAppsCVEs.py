@@ -5,6 +5,8 @@ import argparse
 import requests
 import time
 import json
+from requests.packages.urllib3.exceptions import InsecureRequestWarning
+requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 def getAppCVEs(_apiurl, _auth, _orgid, _appid, _appname, _resultsFile):
     _headers = {'Accept':'application/json'}

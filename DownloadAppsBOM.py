@@ -4,7 +4,10 @@ import sys
 import argparse
 import requests
 import time
+import re
 import json
+from requests.packages.urllib3.exceptions import InsecureRequestWarning
+requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 def getAppBOM(_apiurl, _auth, _orgid, _appid, _appname, _bomfile):
     _headers = {'Accept':'application/json'}
@@ -28,23 +31,40 @@ def getAppBOM(_apiurl, _auth, _orgid, _appid, _appname, _bomfile):
         
         # Check to see if there any items on the BOM
         if len(_jsonResult['thirdParties']) == 0:
-            _bomfile.write('{},"{}","{}","{}","{}","{}",{}\n'.format(_appid, _appname, 'n/a', 'n/a', 'n/a', 'n/a', 0))
+            _bomfile.write('{},"{}","{}","{}","{}","{}",{},"{}"\n'.format(_appid, _appname, 'n/a', 'n/a', 'n/a', 'n/a', 0,'n/a'))
         else:
             # Loop through all libraries
             for item in _jsonResult['thirdParties']:
                 # Header: 'app_id,app_name,lib_name,lib_ver,lib_lastver,lib_lang,cve_count'
                 
                 # Check if JSON element is present, otherwise specify that data is unavailable
+                _libName = item['name']
                 _libVer = item['version'] if ('version' in item) else 'n/a'
                 _libLastVer = item['lastVersion'] if ('lastVersion' in item) else 'n/a'
                 _libLang = item['languages'] if ('languages' in item) else 'n/a'
                 _libcve = len(item['cve']['vulnerabilities']) if ('cve' in item) else 0
+                
+                # Get library license information
+                if 'licenses' in item:
+                    if len(item['licenses']) == 0:
+                        _libLicenses = 'n/a'
+                    else:
+                        _libLicenses = ''
+                        for license in item['licenses']:
+                            if _libLicenses == '':
+                                _libLicenses = '{} ({})'.format(re.sub(r'"', '""', license['name']), license['compliance'])
+                            else:
+                                _libLicenses = '{}, {} ({})'.format(_libLicenses, re.sub(r'"', '""', license['name']), license['compliance'])
+                else:
+                    _libLicenses = 'n/a'
     
-                _bomfile.write('{},"{}","{}","{}","{}","{}",{}\n'.format(_appid, _appname, item['name'], _libVer, _libLastVer, _libLang, _libcve))
+                _bomfile.write('{},"{}","{}","{}","{}","{}",{},"{}"\n'.format(_appid, _appname, _libName, 
+                                                                              _libVer, _libLastVer, _libLang, _libcve, _libLicenses))
 
     except Exception as e:
         print('***********************************************')
         print('Error: {}'.format(str(e)))
+        print('App ID:{}'.format(_appid))
         print('***********************************************')
         #print(json.dumps(_jsonResult).replace("\'", "*"))
         #exit (0)
@@ -67,7 +87,7 @@ if __name__ == "__main__":
     try:
         # Create file where results of query will be stored
         _bomfile = open(_args.filepath, "w") # Create file
-        _bomfile.write('app_id,app_name,lib_name,lib_ver,lib_lastver,lib_lang,cve_count\n') # Write file header
+        _bomfile.write('app_id,app_name,lib_name,lib_ver,lib_lastver,lib_lang,cve_count,library_license\n') # Write file header
     
         # Get list of all applications
         _headers = {'Accept':'application/json'}
@@ -82,8 +102,6 @@ if __name__ == "__main__":
             print('Getting BOM for application "{}" (id:{})'.format(item['name'], item['id']))
             getAppBOM(_args.connection, _auth, _args.orgid, item['id'], item['name'], _bomfile)
         
-        #getAppBOM(_args.connection, _auth, _args.orgid, 1246, 'ACH', _bomfile) # Debugging statement 
-         
         # Close file
         _bomfile.close()
         print ('Bill of Material information stored in file: {}'.format(_args.filepath))
